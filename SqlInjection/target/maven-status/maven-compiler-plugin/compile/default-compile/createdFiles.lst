@@ -1,2 +1,2 @@
-com\journaldev\sqlinjection\LoginServlet.class
-com\journaldev\sqlinjection\SecureLoginServlet.class
+com\app\sqlinjection\LoginServlet.class
+com\app\sqlinjection\SecureLoginServlet.class
