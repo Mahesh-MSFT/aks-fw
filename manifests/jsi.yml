@@ -34,6 +34,17 @@ spec:
     requests:
       storage: 20Gi
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-initdb-config
+data:
+  initdb.sql: |
+    CREATE DATABASE IF NOT EXISTS userDB;
+    USE userDB;
+    CREATE TABLE tblUser (id INT, username VARCHAR(256),  password VARCHAR(256));
+    INSERT INTO tblUser VALUES ('admin', 'admin');
+---
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
@@ -69,6 +80,9 @@ spec:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
           claimName: mysql-pv-claim
+      - name: mysql-initdb
+      configMap:
+        name: mysql-initdb-config
 ---
 apiVersion: v1
 kind: Service
