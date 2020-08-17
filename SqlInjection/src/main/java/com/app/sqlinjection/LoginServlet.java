@@ -18,7 +18,7 @@ public class LoginServlet extends HttpServlet {
         boolean success = false;
         String username = request.getParameter("username");
         String password = request.getParameter("password");
-        // Unsafe query which uses string concatenation
+        // Password =  ' or '1'='1
         String query = "select * from tblUser where username='" + username + "' and password = '" + password + "'";
         Connection conn = null;
         Statement stmt = null;
