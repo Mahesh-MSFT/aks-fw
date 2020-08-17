@@ -19,11 +19,11 @@ public class LoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
         // Unsafe query which uses string concatenation
-        String query = "select * from tbluser where username='" + username + "' and password = '" + password + "'";
+        String query = "select * from tblUser where username='" + username + "' and password = '" + password + "'";
         Connection conn = null;
         Statement stmt = null;
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://mysql:3306/userDB", "admin", "admin");
+            conn = DriverManager.getConnection("jdbc:mysql://172.17.0.2:3306/userDB", "root", "root");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             if (rs.next()) {
