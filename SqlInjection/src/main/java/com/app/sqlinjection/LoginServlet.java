@@ -23,7 +23,7 @@ public class LoginServlet extends HttpServlet {
         Connection conn = null;
         Statement stmt = null;
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://172.17.0.2:3306/userDB", "root", "root");
+            conn = DriverManager.getConnection("jdbc:mysql://mysqlsvc:3306/userDB", "root", "root");
             stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             if (rs.next()) {
