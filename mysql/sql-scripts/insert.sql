@@ -1,0 +1,1 @@
+INSERT INTO tblUser(username, password) VALUES ('admin', 'admin');

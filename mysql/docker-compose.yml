@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  aks-fw:
+    image: aks-fw
+    build: .
+    ports:
+      - 3306

@@ -1,0 +1,10 @@
+version: '3.4'
+
+services:
+  aks-fw:
+    image: aks-fw
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3306
