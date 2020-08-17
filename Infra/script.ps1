@@ -53,22 +53,30 @@ az network route-table route create -g $RG --name $FWROUTE_NAME_INTERNET `
     --route-table-name $FWROUTE_TABLE_NAME --address-prefix $FWPUBLIC_IP/32 `
     --next-hop-type Internet
 
+# Add NAT Rules
+az network firewall nat-rule create -g $RG -f $FWNAME `
+    --collection-name 'aksfwnatr' -n 'inboundtcp' --protocols 'TCP' --source-addresses '*' `
+    --destination-addresses $FWPUBLIC_IP --destination-ports 80 `
+    --priority 100 `
+    --translated-address '<TO-BE-ADDED>' --translated-port 80
+
+
 # Add FW Network Rules
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' `
     --destination-addresses "AzureCloud.$LOC" --destination-ports 1194 --action allow --priority 100
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "AzureCloud.$LOC" --destination-ports 9000
+    --destination-addresses "AzureCloud.$LOC" --destination-ports 9000 --action allow --priority 110
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'acrtcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "AzureContainerRegistry" --destination-ports 443
+    --destination-addresses "AzureContainerRegistry" --destination-ports 443 --action allow --priority 120
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'mcrtcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "MicrosoftContainerRegistry" --destination-ports 443
+    --destination-addresses "MicrosoftContainerRegistry" --destination-ports 443 --action allow --priority 130
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' `
-    --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
+    --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123 --action allow --priority 140
 
 # Add FW Application Rules
 az network firewall application-rule create -g $RG -f $FWNAME `
