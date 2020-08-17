@@ -7,7 +7,7 @@ RUN mvn -f /usr/src/sji/pom.xml clean package
 FROM tomcat:jdk8-openjdk
 WORKDIR /
 
-COPY --from=build /usr/src/sji/target/javasqlinjection.war /usr/local/tomcat/webapps/javasqlinjection.war
+COPY --from=build /usr/src/sji/target/jsi.war /usr/local/tomcat/webapps/jsi.war
 
 EXPOSE 80
 

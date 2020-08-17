@@ -41,7 +41,7 @@ public class LoginServlet extends HttpServlet {
         if (success) {
             response.sendRedirect("home.html");
         } else {
-            response.sendRedirect("login.html?error=1");
+            response.sendRedirect("unauth.html");
         }
     }
 }
