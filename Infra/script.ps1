@@ -166,5 +166,13 @@ az network application-gateway create `
   --subnet "AzureAppGatewaySubnet" `
   --servers "10.42.1.100"
 
+# Configure App Gateway
+az network application-gateway waf-config set `
+  --enabled true `
+  --gateway-name "AGW-for-AKS" `
+  --resource-group $RG `
+  --firewall-mode Prevention `
+  --rule-set-version 3.0
+
 
 
