@@ -39,9 +39,9 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mysql-initdb-config
+  name: mysql-init-config
 data:
-  initdb.sql: |
+  init.sql: |
     CREATE DATABASE IF NOT EXISTS userDB;
     USE userDB;
     CREATE TABLE tblUser (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(256),  password VARCHAR(256));
@@ -64,7 +64,7 @@ spec:
         app: mysql
     spec:
       containers:
-      - image: mysql:5.6
+      - image: makshacr.azurecr.io/mysql:latest
         name: mysql
         env:
           # Use secret in real usage
@@ -84,8 +84,8 @@ spec:
         persistentVolumeClaim:
           claimName: mysql-pv-claim
       - name: mysql-initdb
-      configMap:
-        name: mysql-initdb-config
+        configMap:
+          name: mysql-init-config
 
 ---
 apiVersion: v1
@@ -134,7 +134,7 @@ spec:
   selector:
     app: jsi
   type: LoadBalancer
-  loadBalancerIP: 110.42.1.100
+  loadBalancerIP: 10.42.1.100
   ports:
   - port: 80
     targetPort: 8080

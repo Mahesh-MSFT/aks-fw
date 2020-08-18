@@ -7,6 +7,7 @@ $VNET_NAME="${PREFIX}-vnet"
 $AKSSUBNET_NAME="aks-subnet"
 $FWNAME="${PREFIX}"
 $FWPUBLICIP_NAME="${PREFIX}-fwpublicip"
+$AGWPUBLICIP_NAME="${PREFIX}-agwpublicip" 
 $FWIPCONFIG_NAME="${PREFIX}-fwconfig"
 $FWROUTE_TABLE_NAME="${PREFIX}-fwrt"
 $FWROUTE_NAME="${PREFIX}-fwrn"
@@ -85,6 +86,9 @@ az network firewall network-rule create -g $RG -f $FWNAME `
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' `
     --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
+az network firewall network-rule create -g $RG -f $FWNAME `
+    --collection-name 'aksfwnr' -n 'dockerregistry' --protocols 'TCP' --source-addresses '*' `
+    --destination-fqdns 'registry-1.docker.io' --destination-ports 443
 
 # Add FW Application Rules
 az network firewall application-rule create -g $RG -f $FWNAME `
@@ -115,10 +119,8 @@ az aks create -g $RG -n $AKSNAME -l $LOC `
 az aks update -g $RG -n $AKSNAME --attach-acr makshacr
 az aks update -g $RG -n $AKSNAME --attach-acr $(az acr show -n $ACR_NAME --query "id" -o tsv)
 
-
-az aks get-credentials -g $RG -n $AKSNAME --admin
-
 # Workaround for Bug (https://github.com/Azure/AKS/issues/1517#issuecomment-675521448)
+az aks get-credentials -g $RG -n $AKSNAME --admin
 $ACR_UNAME=$(az acr credential show -n $ACR_FULL_NAME --query="username" -o tsv)
 $ACR_PASSWD=$(az acr credential show -n $ACR_FULL_NAME --query="passwords[0].value" -o tsv)
 
@@ -130,6 +132,39 @@ kubectl create secret docker-registry acr-secret `
 
 # Assign k8s secret to default service account
 kubectl patch serviceaccount default -p '{\"imagePullSecrets\": [{\"name\": \"acr-secret\"}]}'
+
+# Create all the services
+kubectl apply -f .\manifests\jsi.yml
+kubectl delete -f .\manifests\jsi.yml
+
+# Browse
+az aks browse -g $RG -n $AKSNAME 
+
+# Create subnet for App Gateway
+az network vnet subnet create `
+    --resource-group $RG `
+    --vnet-name $VNET_NAME `
+    --name "AzureAppGatewaySubnet" `
+    --address-prefix 10.42.3.0/24
+
+# Create Public IP for App Gateway
+az network public-ip create -g $RG -n $AGWPUBLICIP_NAME -l $LOC --sku "Basic"
+
+# Create App Gateway
+az network application-gateway create `
+  --name "AGW-for-AKS" `
+  --location  $LOC `
+  --resource-group $RG `
+  --capacity 2 `
+  --sku WAF_Medium `
+  --http-settings-cookie-based-affinity Disabled `
+  --frontend-port 80 `
+  --http-settings-port 80 `
+  --http-settings-protocol Http `
+  --public-ip-address $AGWPUBLICIP_NAME `
+  --vnet-name $VNET_NAME `
+  --subnet "AzureAppGatewaySubnet" `
+  --servers "10.42.1.100"
 
 
 
