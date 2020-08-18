@@ -8,13 +8,16 @@ $AKSSUBNET_NAME="aks-subnet"
 $FWNAME="${PREFIX}"
 $FWPUBLICIP_NAME="${PREFIX}-fwpublicip"
 $FWIPCONFIG_NAME="${PREFIX}-fwconfig"
+$FWROUTE_TABLE_NAME="${PREFIX}-fwrt"
+$FWROUTE_NAME="${PREFIX}-fwrn"
+$FWROUTE_NAME_INTERNET="${PREFIX}-fwinternet"
 $SUB_ID=$(az keyvault secret show --name "subscriptionid" --vault-name "maksh-key-vault" --query value)
 $APP_ID=$(az keyvault secret show --name "clientid" --vault-name "maksh-key-vault" --query value)
 $APP_SECRET=$(az keyvault secret show --name "clientsecret" --vault-name "maksh-key-vault" --query value)
 $TENANT_ID=$(az keyvault secret show --name "tenantid" --vault-name "maksh-key-vault" --query value)
 
 # Login
-az login --service-principal --username $APP_ID --password $PASSWORD --tenant $TENANT_ID
+az login --service-principal --username $APP_ID --password $APP_SECRET --tenant $TENANT_ID
 
 # Create Resource Group
 az group create --name $RG --location $LOC
@@ -37,6 +40,9 @@ az network vnet subnet create `
 # Deploy Azure Firewall
 az network firewall create -g $RG -n $FWNAME -l $LOC --enable-dns-proxy true
 
+# Create Public IP for Firewall
+az network public-ip create -g $RG -n $FWPUBLICIP_NAME -l $LOC --sku "Standard"
+
 # Configure Firewall IP Config
 az network firewall ip-config create -g $RG -f $FWNAME -n $FWIPCONFIG_NAME --public-ip-address $FWPUBLICIP_NAME --vnet-name $VNET_NAME
 
@@ -56,10 +62,9 @@ az network route-table route create -g $RG --name $FWROUTE_NAME_INTERNET `
 # Add NAT Rules
 az network firewall nat-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnatr' -n 'inboundtcp' --protocols 'TCP' --source-addresses '*' `
+    --action Dnat  --priority 100 `
     --destination-addresses $FWPUBLIC_IP --destination-ports 80 `
-    --priority 100 `
     --translated-address '10.42.1.100' --translated-port 80
-
 
 # Add FW Network Rules
 az network firewall network-rule create -g $RG -f $FWNAME `
@@ -68,19 +73,16 @@ az network firewall network-rule create -g $RG -f $FWNAME `
     --priority 100
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "AzureCloud.$LOC" --destination-ports 9000 --action allow `
-    --priority 110
+    --destination-addresses "AzureCloud.$LOC" --destination-ports 9000
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'acrtcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "AzureContainerRegistry" --destination-ports 443 --action allow `
-    --priority 120
+    --destination-addresses "AzureContainerRegistry" --destination-ports 443
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'mcrtcp' --protocols 'TCP' --source-addresses '*' `
-    --destination-addresses "MicrosoftContainerRegistry" --destination-ports 443 `
-    --action allow --priority 130
+    --destination-addresses "MicrosoftContainerRegistry" --destination-ports 443
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' `
-    --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123 --action allow --priority 140
+    --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
 
 # Add FW Application Rules
 az network firewall application-rule create -g $RG -f $FWNAME `
@@ -95,7 +97,7 @@ az network vnet subnet update -g $RG --vnet-name $VNET_NAME `
 $SUBNET_ID=$(az network vnet subnet show -g $RG --vnet-name `
     $VNET_NAME --name $AKSSUBNET_NAME --query id -o tsv)
 
-# Create AKS
+# Create AKS (Ignore the warning - Are you owner?. If it is an error - delete ~/.azure/aksServicePrincipal.json)
 az aks create -g $RG -n $AKSNAME -l $LOC `
   --node-count 1 --generate-ssh-keys `
   --network-plugin $PLUGIN `
@@ -106,3 +108,6 @@ az aks create -g $RG -n $AKSNAME -l $LOC `
   --vnet-subnet-id $SUBNET_ID `
   --service-principal $APP_ID `
   --client-secret $APP_SECRET
+
+# Attach ACR
+az aks update -g $RG -n $AKSNAME --attach-acr makshacr
