@@ -11,6 +11,8 @@ $FWIPCONFIG_NAME="${PREFIX}-fwconfig"
 $FWROUTE_TABLE_NAME="${PREFIX}-fwrt"
 $FWROUTE_NAME="${PREFIX}-fwrn"
 $FWROUTE_NAME_INTERNET="${PREFIX}-fwinternet"
+$ACR_NAME="makshacr"
+$ACR_FULL_NAME="makshacr.azurecr.io"
 $SUB_ID=$(az keyvault secret show --name "subscriptionid" --vault-name "maksh-key-vault" --query value)
 $APP_ID=$(az keyvault secret show --name "clientid" --vault-name "maksh-key-vault" --query value)
 $APP_SECRET=$(az keyvault secret show --name "clientsecret" --vault-name "maksh-key-vault" --query value)
@@ -111,3 +113,23 @@ az aks create -g $RG -n $AKSNAME -l $LOC `
 
 # Attach ACR
 az aks update -g $RG -n $AKSNAME --attach-acr makshacr
+az aks update -g $RG -n $AKSNAME --attach-acr $(az acr show -n $ACR_NAME --query "id" -o tsv)
+
+
+az aks get-credentials -g $RG -n $AKSNAME --admin
+
+# Workaround for Bug (https://github.com/Azure/AKS/issues/1517#issuecomment-675521448)
+$ACR_UNAME=$(az acr credential show -n $ACR_FULL_NAME --query="username" -o tsv)
+$ACR_PASSWD=$(az acr credential show -n $ACR_FULL_NAME --query="passwords[0].value" -o tsv)
+
+# Create k8s secret
+kubectl create secret docker-registry acr-secret `
+  --docker-server=$ACR_FULL_NAME `
+  --docker-username=$ACR_UNAME `
+  --docker-password=$ACR_PASSWD
+
+# Assign k8s secret to default service account
+kubectl patch serviceaccount default -p '{\"imagePullSecrets\": [{\"name\": \"acr-secret\"}]}'
+
+
+
