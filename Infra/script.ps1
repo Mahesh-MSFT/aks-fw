@@ -174,5 +174,22 @@ az network application-gateway waf-config set `
   --firewall-mode Prevention `
   --rule-set-version 3.0
 
+  # Create http probe
+az network application-gateway probe create `
+    -g $RG `
+    --gateway-name "AGW-for-AKS" `
+    -n defaultprobe-Http `
+    --protocol http `
+    --host 10.42.1.100 `
+    --timeout 30 `
+    --path /jsi
+
+# Link http probe to application gateway
+az network application-gateway http-settings update `
+    -g $RG `
+    --gateway-name "AGW-for-AKS" `
+    -n appGatewayBackendHttpSettings `
+    --probe defaultprobe-Http
+
 
 
