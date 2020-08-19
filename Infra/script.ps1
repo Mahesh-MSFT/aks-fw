@@ -7,13 +7,15 @@ $VNET_NAME="${PREFIX}-vnet"
 $AKSSUBNET_NAME="aks-subnet"
 $FWNAME="${PREFIX}"
 $FWPUBLICIP_NAME="${PREFIX}-fwpublicip"
-$AGWPUBLICIP_NAME="${PREFIX}-agwpublicip" 
 $FWIPCONFIG_NAME="${PREFIX}-fwconfig"
 $FWROUTE_TABLE_NAME="${PREFIX}-fwrt"
 $FWROUTE_NAME="${PREFIX}-fwrn"
 $FWROUTE_NAME_INTERNET="${PREFIX}-fwinternet"
 $ACR_NAME="makshacr"
 $ACR_FULL_NAME="makshacr.azurecr.io"
+$AGWPUBLICIP_NAME="${PREFIX}-agwpublicip" 
+$AFD_NAME="AFDforAKS"
+$AFD_HOST_NAME="${AFD_NAME}.azurefd.net" 
 $SUB_ID=$(az keyvault secret show --name "subscriptionid" --vault-name "maksh-key-vault" --query value)
 $APP_ID=$(az keyvault secret show --name "clientid" --vault-name "maksh-key-vault" --query value)
 $APP_SECRET=$(az keyvault secret show --name "clientsecret" --vault-name "maksh-key-vault" --query value)
@@ -86,9 +88,6 @@ az network firewall network-rule create -g $RG -f $FWNAME `
 az network firewall network-rule create -g $RG -f $FWNAME `
     --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' `
     --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
-az network firewall network-rule create -g $RG -f $FWNAME `
-    --collection-name 'aksfwnr' -n 'dockerregistry' --protocols 'TCP' --source-addresses '*' `
-    --destination-fqdns 'registry-1.docker.io' --destination-ports 443
 
 # Add FW Application Rules
 az network firewall application-rule create -g $RG -f $FWNAME `
@@ -152,7 +151,7 @@ az network public-ip create -g $RG -n $AGWPUBLICIP_NAME -l $LOC --sku "Basic"
 
 # Create App Gateway
 az network application-gateway create `
-  --name "AGW-for-AKS" `
+  --name $AGW_NAME `
   --location  $LOC `
   --resource-group $RG `
   --capacity 2 `
@@ -169,7 +168,7 @@ az network application-gateway create `
 # Configure App Gateway
 az network application-gateway waf-config set `
   --enabled true `
-  --gateway-name "AGW-for-AKS" `
+  --gateway-name $AGW_NAME `
   --resource-group $RG `
   --firewall-mode Prevention `
   --rule-set-version 3.0
@@ -177,7 +176,7 @@ az network application-gateway waf-config set `
   # Create http probe
 az network application-gateway probe create `
     -g $RG `
-    --gateway-name "AGW-for-AKS" `
+    --gateway-name $AGW_NAME `
     -n defaultprobe-Http `
     --protocol http `
     --host 10.42.1.100 `
@@ -187,9 +186,45 @@ az network application-gateway probe create `
 # Link http probe to application gateway
 az network application-gateway http-settings update `
     -g $RG `
-    --gateway-name "AGW-for-AKS" `
+    --gateway-name $AGW_NAME `
     -n appGatewayBackendHttpSettings `
     --probe defaultprobe-Http
+
+# Add Front Door CLI extension
+az extension add --name front-door
+
+# Create Front Door
+az network front-door create `
+    --resource-group $RG `
+    --name $AFD_NAME `
+    --backend-address $FWPUBLIC_IP `
+    --path /jsi
+
+# Delete default front-end endpoint
+az network front-door frontend-endpoint delete `
+    --resource-group $RG `
+    --front-door-name $AFD_NAME `
+    --name $AFD_NAME
+
+# Create AFD WAF Policy
+az network front-door waf-policy create `
+    --resource-group $RG `
+    --name "AFDWAFpolicy" `
+    --mode "Prevention" `
+    --disabled False
+
+# Get AFD WAF Policy ID
+$wafpolicyid = az network front-door waf-policy list `
+    --resource-group $RG `
+    --query "[?contains(name, 'AFDWAFpolicy')].id" | convertfrom-json
+
+# Update Front Door front-end endpoint with WAF Policy
+az network front-door frontend-endpoint create `
+    --resource-group $RG `
+    --front-door-name $AFD_NAME `
+    --name $AFD_NAME `
+    --host-name $AFD_HOST_NAME `
+    --waf-policy $wafpolicyid
 
 
 
