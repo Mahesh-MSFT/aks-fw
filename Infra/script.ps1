@@ -15,7 +15,7 @@ $ACR_NAME="makshacr"
 $ACR_FULL_NAME="makshacr.azurecr.io"
 $AGWPUBLICIP_NAME="${PREFIX}-agwpublicip" 
 $AFD_NAME="AFDforAKS"
-$AFD_HOST_NAME="${AFD_NAME}.azurefd.net" 
+$AFD_POLICY_NAME="AFDWAFpolicy" 
 $SUB_ID=$(az keyvault secret show --name "subscriptionid" --vault-name "maksh-key-vault" --query value)
 $APP_ID=$(az keyvault secret show --name "clientid" --vault-name "maksh-key-vault" --query value)
 $APP_SECRET=$(az keyvault secret show --name "clientsecret" --vault-name "maksh-key-vault" --query value)
@@ -203,7 +203,7 @@ az network front-door create `
 # Create AFD WAF Policy
 az network front-door waf-policy create `
     --resource-group $RG `
-    --name "AFDWAFpolicy" `
+    --name $AFD_POLICY_NAME `
     --mode "Prevention" `
     --disabled False
 
@@ -212,7 +212,7 @@ az network front-door waf-policy managed-rule-definition list --query '[].{ruleS
 
 # Add Managed Rule Set to Policy
 az network front-door waf-policy managed-rules add `
-    --policy-name "AFDWAFpolicy" `
+    --policy-name $AFD_POLICY_NAME `
     --resource-group $RG `
     --type "DefaultRuleSet" `
     --version "1.0"
@@ -221,7 +221,7 @@ az network front-door waf-policy managed-rules add `
 az network front-door update `
     --resource-group $RG `
     --name $AFD_NAME `
-    --set FrontendEndpoints[0].WebApplicationFirewallPolicyLink.id=/subscriptions/$SUB_ID/resourcegroups/$RG/providers/Microsoft.Network/frontdoorwebapplicationfirewallpolicies/AFDWAFpolicy 
+    --set FrontendEndpoints[0].WebApplicationFirewallPolicyLink.id=/subscriptions/$SUB_ID/resourcegroups/$RG/providers/Microsoft.Network/frontdoorwebapplicationfirewallpolicies/$AFD_POLICY_NAME 
 
 
 
