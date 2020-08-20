@@ -199,13 +199,7 @@ az network front-door create `
     --name $AFD_NAME `
     --backend-address $FWPUBLIC_IP `
     --path /jsi
-
-# Delete default front-end endpoint
-az network front-door frontend-endpoint delete `
-    --resource-group $RG `
-    --front-door-name $AFD_NAME `
-    --name $AFD_NAME
-
+    
 # Create AFD WAF Policy
 az network front-door waf-policy create `
     --resource-group $RG `
@@ -213,18 +207,24 @@ az network front-door waf-policy create `
     --mode "Prevention" `
     --disabled False
 
-# Get AFD WAF Policy ID
-$wafpolicyid = az network front-door waf-policy list `
-    --resource-group $RG `
-    --query "[?contains(name, 'AFDWAFpolicy')].id" | convertfrom-json
+# Get Availanle Rule Definition    
+az network front-door waf-policy managed-rule-definition list --query '[].{ruleSetId:ruleSetId, ruleSetType:ruleSetType, ruleSetVersion:ruleSetVersion}' -o tsv
 
-# Update Front Door front-end endpoint with WAF Policy
-az network front-door frontend-endpoint create `
+# Add Managed Rule Set to Policy
+az network front-door waf-policy managed-rules add `
+    --policy-name "AFDWAFpolicy" `
     --resource-group $RG `
-    --front-door-name $AFD_NAME `
+    --type "DefaultRuleSet" `
+    --version "1.0"
+
+# Assign WAF Policy to AFD
+az network front-door update `
+    --resource-group $RG `
     --name $AFD_NAME `
-    --host-name $AFD_HOST_NAME `
-    --waf-policy $wafpolicyid
+    --set FrontendEndpoints[0].WebApplicationFirewallPolicyLink.id=/subscriptions/$SUB_ID/resourcegroups/$RG/providers/Microsoft.Network/frontdoorwebapplicationfirewallpolicies/AFDWAFpolicy 
 
+
+
+                                                                    
 
 
