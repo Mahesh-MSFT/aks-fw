@@ -16,6 +16,8 @@ $ACR_FULL_NAME="makshacr.azurecr.io"
 $AGWPUBLICIP_NAME="${PREFIX}-agwpublicip" 
 $AFD_NAME="AFDforAKS"
 $AFD_POLICY_NAME="AFDWAFpolicy" 
+$AFD_PUBLICIP_NAME="${PREFIX}-afd-publicip"
+$AFD_VPNGW_NAME="${PREFIX}-afd-vpn-gateway"
 $SUB_ID=$(az keyvault secret show --name "subscriptionid" --vault-name "maksh-key-vault" --query value)
 $APP_ID=$(az keyvault secret show --name "clientid" --vault-name "maksh-key-vault" --query value)
 $APP_SECRET=$(az keyvault secret show --name "clientsecret" --vault-name "maksh-key-vault" --query value)
@@ -173,7 +175,7 @@ az network application-gateway waf-config set `
   --firewall-mode Prevention `
   --rule-set-version 3.0
 
-  # Create http probe
+# Create http probe
 az network application-gateway probe create `
     -g $RG `
     --gateway-name $AGW_NAME `
@@ -190,6 +192,24 @@ az network application-gateway http-settings update `
     -n appGatewayBackendHttpSettings `
     --probe defaultprobe-Http
 
+# Create Public IP address for AFD backend
+az network public-ip create -g $RG -n $AFD_PUBLICIP_NAME `
+    -l $LOC --allocation-method Dynamic
+
+# Create subnet for VPN Gateway for AFD
+az network vnet subnet create `
+    --resource-group $RG `
+    --vnet-name $VNET_NAME `
+    --name "GatewaySubnet" `
+    --address-prefix 10.42.4.0/24
+
+# Create VPN Gateway for AFD
+az network vnet-gateway create -n $AFD_VPNGW_NAME  -l $LOC `
+    --public-ip-address $AFD_PUBLICIP_NAME -g $RG `
+    --vnet $VNET_NAME --gateway-type Vpn `
+    --sku VpnGw1 --vpn-type RouteBased `
+    --no-wait
+ 
 # Add Front Door CLI extension
 az extension add --name front-door
 
