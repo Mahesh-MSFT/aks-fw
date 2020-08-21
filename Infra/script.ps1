@@ -209,7 +209,11 @@ az network vnet-gateway create -n $AFD_VPNGW_NAME  -l $LOC `
     --vnet $VNET_NAME --gateway-type Vpn `
     --sku VpnGw1 --vpn-type RouteBased `
     --no-wait
- 
+
+# Get AFD VPN Gateway Public IP  
+$AFD_PUBLIC_IP=$(az network public-ip show -g $RG -n $AFD_PUBLICIP_NAME --query "ipAddress" -o tsv)  
+Write-Output $AFD_PUBLIC_IP
+
 # Add Front Door CLI extension
 az extension add --name front-door
 
@@ -217,7 +221,7 @@ az extension add --name front-door
 az network front-door create `
     --resource-group $RG `
     --name $AFD_NAME `
-    --backend-address $FWPUBLIC_IP `
+    --backend-address $AFD_PUBLIC_IP `
     --path /jsi
     
 # Create AFD WAF Policy
